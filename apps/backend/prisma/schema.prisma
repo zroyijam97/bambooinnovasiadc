@@ -1,0 +1,450 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(USER)
+  status    UserStatus @default(ACTIVE)
+  emailVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  organizations OrganizationMember[]
+  ownedOrganizations Organization[] @relation("OrganizationOwner")
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  logo      String?
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  owner       User                 @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     OrganizationMember[]
+  vcards      VCard[]
+  domains     Domain[]
+  subscription Subscription?
+  mediaAssets MediaAsset[]
+
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MemberRole @default(MEMBER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@map("organization_members")
+}
+
+model Plan {
+  id               String   @id @default(cuid())
+  name             String
+  price            Float
+  currency         String   @default("USD")
+  interval         PlanInterval
+  features         Json
+  templateAllowlist String[]
+  maxCards         Int
+  customDomain     Boolean  @default(false)
+  analytics        Boolean  @default(false)
+  removeBranding   Boolean  @default(false)
+  status           PlanStatus @default(ACTIVE)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  organizationId       String   @unique
+  planId               String
+  status               SubscriptionStatus
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  stripeSubscriptionId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan         Plan         @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model Template {
+  id        String   @id @default(cuid())
+  name      String
+  version   String   @default("1.0.0")
+  config    Json
+  status    TemplateStatus @default(DRAFT)
+  preview   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  vcards VCard[]
+
+  @@map("templates")
+}
+
+model VCard {
+  id             String   @id @default(cuid())
+  organizationId String
+  templateId     String
+  slug           String   @unique
+  title          String
+  name           String
+  jobTitle       String?
+  company        String?
+  bio            String?
+  avatar         String?
+  banner         String?
+  phone          String?
+  email          String?
+  website        String?
+  address        String?
+  themeConfig    Json     @default("{}")
+  fontId         String?
+  publishStatus  PublishStatus @default(DRAFT)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template       Template        @relation(fields: [templateId], references: [id])
+  businessHours  BusinessHours[]
+  services       Service[]
+  socialLinks    SocialLink[]
+  testimonials   Testimonial[]
+  enquiries      Enquiry[]
+  analyticsEvents AnalyticsEvent[]
+  mediaAssets    MediaAsset[]
+
+  @@map("vcards")
+}
+
+model BusinessHours {
+  id        String   @id @default(cuid())
+  vcardId   String
+  day       DayOfWeek
+  openTime  String?
+  closeTime String?
+  isClosed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  vcard VCard @relation(fields: [vcardId], references: [id], onDelete: Cascade)
+
+  @@unique([vcardId, day])
+  @@map("business_hours")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  vcardId     String
+  title       String
+  description String?
+  price       Float?
+  currency    String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  vcard VCard @relation(fields: [vcardId], references: [id], onDelete: Cascade)
+
+  @@map("services")
+}
+
+model SocialLink {
+  id        String   @id @default(cuid())
+  vcardId   String
+  platform  String
+  url       String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  vcard VCard @relation(fields: [vcardId], references: [id], onDelete: Cascade)
+
+  @@map("social_links")
+}
+
+model Testimonial {
+  id        String   @id @default(cuid())
+  vcardId   String
+  name      String
+  avatar    String?
+  rating    Int      @default(5)
+  text      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  vcard VCard @relation(fields: [vcardId], references: [id], onDelete: Cascade)
+
+  @@map("testimonials")
+}
+
+model Enquiry {
+  id        String   @id @default(cuid())
+  vcardId   String
+  name      String
+  email     String
+  message   String
+  status    EnquiryStatus @default(NEW)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  vcard VCard @relation(fields: [vcardId], references: [id], onDelete: Cascade)
+
+  @@map("enquiries")
+}
+
+model Domain {
+  id             String   @id @default(cuid())
+  organizationId String
+  hostname       String   @unique
+  targetSlug     String
+  sslStatus      SSLStatus @default(PENDING)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("domains")
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  vcardId   String
+  type      EventType
+  ipHash    String
+  userAgent String?
+  referrer  String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  vcard VCard @relation(fields: [vcardId], references: [id], onDelete: Cascade)
+
+  @@map("analytics_events")
+}
+
+model MediaAsset {
+  id             String   @id @default(cuid())
+  organizationId String
+  vcardId        String?
+  type           MediaType
+  filename       String
+  url            String
+  size           Int
+  mimeType       String
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vcard        VCard?       @relation(fields: [vcardId], references: [id], onDelete: Cascade)
+
+  @@map("media_assets")
+}
+
+model CMSBlock {
+  id        String   @id @default(cuid())
+  type      String
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cms_blocks")
+}
+
+model Country {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  states State[]
+
+  @@map("countries")
+}
+
+model State {
+  id        String   @id @default(cuid())
+  countryId String
+  code      String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  cities  City[]
+
+  @@unique([countryId, code])
+  @@map("states")
+}
+
+model City {
+  id        String   @id @default(cuid())
+  stateId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  state State @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  @@map("cities")
+}
+
+model Currency {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  symbol    String
+  name      String
+  decimals  Int      @default(2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("currencies")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  target    String
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+// Enums
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum PlanInterval {
+  MONTH
+  YEAR
+}
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
+
+enum TemplateStatus {
+  DRAFT
+  LIVE
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum EnquiryStatus {
+  NEW
+  OPEN
+  CLOSED
+}
+
+enum SSLStatus {
+  PENDING
+  ISSUED
+  ERROR
+}
+
+enum EventType {
+  VIEW
+  CLICK
+  SAVE
+  ENQUIRY
+}
+
+enum MediaType {
+  AVATAR
+  BANNER
+  LOGO
+  GALLERY
+  DOCUMENT
+}

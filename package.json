@@ -1,0 +1,36 @@
+{
+  "name": "bamboo-innovasia-digital-cards",
+  "version": "1.0.0",
+  "description": "Multi-tenant SaaS for digital business cards with web and mobile apps",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "packages/*",
+      "apps/*"
+    ]
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "db:generate": "cd apps/backend && npm run db:generate",
+    "db:push": "cd apps/backend && npm run db:push",
+    "db:migrate": "cd apps/backend && npm run db:migrate",
+    "db:studio": "cd apps/backend && npm run db:studio"
+  },
+  "devDependencies": {
+    "@turbo/gen": "^1.10.12",
+    "turbo": "^1.10.12",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.30.0"
+  }
+}
